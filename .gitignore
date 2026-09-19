@@ -1,0 +1,42 @@
+# ---- Datasets & model artifacts ----
+# Raw datasets are large and environment-specific; never commit them.
+ml-service/data/*
+!ml-service/data/.gitkeep
+
+# Trained models/vectorizers are build outputs, not source.
+# NOTE: see README "Deployment Note" for how the ML service still gets
+# a model at runtime (train-on-first-run via docker-compose volume,
+# or manually committing a small artifact) despite this ignore rule.
+ml-service/models/*
+!ml-service/models/.gitkeep
+
+# ---- Python (ml-service, frontend) ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.ipynb_checkpoints
+
+# ---- Java / Spring Boot (backend) ----
+backend/target/
+backend/.mvn/
+backend/*.iml
+*.class
+
+# H2 database files (local persistence, machine-specific)
+backend/*.mv.db
+backend/*.trace.db
+*.csv
+
+# ---- IDE / OS ----
+.idea/
+.vscode/
+*.DS_Store
+Thumbs.db
+
+# ---- Env files ----
+.env
+.env.local

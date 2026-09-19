@@ -1,0 +1,2 @@
+# Pinned in later phases as each dependency is actually introduced:
+# fastapi, uvicorn, pandas, numpy, scikit-learn, joblib, pytest, httpx

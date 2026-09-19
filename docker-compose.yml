@@ -1,0 +1,38 @@
+# docker-compose skeleton (Phase 1).
+#
+# This just sketches the three services and how they'll be wired together.
+# Build contexts/Dockerfiles are added properly in Phase 8, once each
+# service actually has code and a working Dockerfile to point at.
+#
+# Data flow (one direction only):
+#   frontend (Streamlit) -> backend (Spring Boot) -> ml-service (FastAPI)
+
+version: "3.9"
+
+services:
+  ml-service:
+    build: ./ml-service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ml-service/models:/app/models
+    # env_vars for the ML service (e.g. MODEL_DIR) added in Phase 5/8.
+
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      ML_SERVICE_URL: http://ml-service:8000
+    depends_on:
+      - ml-service
+    # H2 file DB volume added in Phase 6/8.
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8501:8501"
+    environment:
+      BACKEND_URL: http://backend:8080
+    depends_on:
+      - backend
