@@ -1,2 +1,6 @@
-# Pinned in later phases as each dependency is actually introduced:
-# fastapi, uvicorn, pandas, numpy, scikit-learn, joblib, pytest, httpx
+pandas==2.3.1
+
+# Added in later phases as each dependency is actually introduced:
+# numpy, scikit-learn, joblib (Phase 3-4)
+# fastapi, uvicorn, pydantic (Phase 5)
+# pytest, httpx (Phase 8)
