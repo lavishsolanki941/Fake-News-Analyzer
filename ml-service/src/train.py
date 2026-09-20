@@ -1,12 +1,12 @@
 """
-Phase 3: TF-IDF vectorization + train/test split + baseline vs. real
+Phases 3-4: TF-IDF vectorization + train/test split + baseline vs. real
 models, all trained and scored on the SAME split so their numbers are
 directly comparable.
 
-Deliberately excludes precision/recall/F1/confusion matrix/ROC-AUC and
-the model comparison report -- that's Phase 4 (src/evaluation.py).
-This script's only job is: vectorize, split, train, persist, and print
-a quick accuracy sanity check.
+Phase 3 (this file): vectorize, split, train, persist, quick train/test
+accuracy sanity check.
+Phase 4 (src/evaluation.py, called from here after fitting): full
+held-out-test-set metrics, comparison tables, and metrics.json.
 
 Run from the ml-service/ directory with: python -m src.train
 """
@@ -25,7 +25,19 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 
 from config import MODEL_DIR, TEST_SIZE
-from src.data_loader import DatasetFormatError, DatasetNotFoundError, load_raw_dataset
+from src.data_loader import (
+    DatasetFormatError,
+    DatasetNotFoundError,
+    dataset_source_paths,
+    load_raw_dataset,
+)
+from src.evaluation import (
+    build_metrics_report,
+    evaluate_models,
+    format_comparison_tables,
+    hash_dataset_files,
+    save_metrics,
+)
 from src.preprocessing import build_dataset
 
 logger = logging.getLogger(__name__)
@@ -40,6 +52,16 @@ LEAKAGE_ACCURACY_THRESHOLD = 0.98
 VECTORIZER_PATH = os.path.join(MODEL_DIR, "vectorizer.joblib")
 LOGISTIC_REGRESSION_PATH = os.path.join(MODEL_DIR, "logistic_regression.joblib")
 MULTINOMIAL_NB_PATH = os.path.join(MODEL_DIR, "multinomial_nb.joblib")
+METRICS_PATH = os.path.join(MODEL_DIR, "metrics.json")
+
+# Keys are the stable identifiers used in metrics.json; display names are
+# what gets printed.
+DISPLAY_NAMES = {
+    "logistic_regression": "Logistic Regression",
+    "multinomial_nb": "Multinomial Naive Bayes",
+    "dummy_baseline": "Dummy (most_frequent baseline)",
+}
+BASELINE_KEYS = ("dummy_baseline",)
 
 
 def build_vectorizer() -> TfidfVectorizer:
@@ -75,7 +97,7 @@ def main() -> None:
         print(f"Training aborted: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    clean_df, _report = build_dataset(raw_df)
+    clean_df, preprocessing_report = build_dataset(raw_df)
 
     X = clean_df["combined_text"]
     y = clean_df["label"]
@@ -95,40 +117,59 @@ def main() -> None:
     os.makedirs(MODEL_DIR, exist_ok=True)
 
     models = {
-        "Logistic Regression": LogisticRegression(
+        "logistic_regression": LogisticRegression(
             max_iter=1000, class_weight="balanced", random_state=RANDOM_STATE
         ),
-        "Multinomial Naive Bayes": MultinomialNB(),
-        "Dummy (most_frequent baseline)": DummyClassifier(
+        "multinomial_nb": MultinomialNB(),
+        "dummy_baseline": DummyClassifier(
             strategy="most_frequent", random_state=RANDOM_STATE
         ),
     }
 
     print(f"Train rows: {X_train.shape[0]}  |  Test rows: {X_test.shape[0]}  |  Vocabulary size: {len(vectorizer.vocabulary_)}\n")
 
-    for name, model in models.items():
+    # Quick train-vs-test accuracy check to eyeball overfitting. The proper
+    # test-set-only metrics come from src/evaluation.py below.
+    for key, model in models.items():
         model.fit(X_train, y_train)
         train_acc = accuracy_score(y_train, model.predict(X_train))
         test_acc = accuracy_score(y_test, model.predict(X_test))
-        print(f"{name}: train accuracy = {train_acc:.4f}, test accuracy = {test_acc:.4f}")
-
-        is_baseline = name.startswith("Dummy")
-        if not is_baseline and test_acc > LEAKAGE_ACCURACY_THRESHOLD:
-            print(
-                f"  WARNING: test accuracy {test_acc:.4f} is above the "
-                f"{LEAKAGE_ACCURACY_THRESHOLD:.0%} leakage threshold. This dataset is known to "
-                "carry wire-service source patterns -- Phase 4 evaluation should look closely "
-                "before trusting this number.",
-                file=sys.stderr,
-            )
+        print(f"{DISPLAY_NAMES[key]}: train accuracy = {train_acc:.4f}, test accuracy = {test_acc:.4f}")
 
     joblib.dump(vectorizer, VECTORIZER_PATH)
-    joblib.dump(models["Logistic Regression"], LOGISTIC_REGRESSION_PATH)
-    joblib.dump(models["Multinomial Naive Bayes"], MULTINOMIAL_NB_PATH)
+    joblib.dump(models["logistic_regression"], LOGISTIC_REGRESSION_PATH)
+    joblib.dump(models["multinomial_nb"], MULTINOMIAL_NB_PATH)
 
     print(f"\nSaved vectorizer            -> {VECTORIZER_PATH}")
     print(f"Saved Logistic Regression   -> {LOGISTIC_REGRESSION_PATH}")
     print(f"Saved Multinomial NB        -> {MULTINOMIAL_NB_PATH}")
+
+    # ---- Phase 4: evaluate on the held-out test set only ----
+    model_results = evaluate_models(models, DISPLAY_NAMES, BASELINE_KEYS, X_test, y_test)
+    report = build_metrics_report(
+        model_results=model_results,
+        preprocessing_report=preprocessing_report,
+        dataset_hash=hash_dataset_files(dataset_source_paths()),
+        y_train=y_train,
+        y_test=y_test,
+        test_fraction=TEST_SIZE,
+        random_state=RANDOM_STATE,
+        leakage_threshold=LEAKAGE_ACCURACY_THRESHOLD,
+    )
+
+    print("\n" + format_comparison_tables(model_results))
+
+    for key in report["metadata"]["leakage"]["models_above_threshold"]:
+        acc = model_results[key]["test_metrics"]["accuracy"]
+        print(
+            f"\nWARNING: {DISPLAY_NAMES[key]} test accuracy {acc:.4f} is above the "
+            f"{LEAKAGE_ACCURACY_THRESHOLD:.0%} leakage threshold. This dataset is known to "
+            "carry wire-service source patterns, so treat this number with suspicion.",
+            file=sys.stderr,
+        )
+
+    save_metrics(report, METRICS_PATH)
+    print(f"\nSaved metrics report        -> {METRICS_PATH}")
 
 
 if __name__ == "__main__":

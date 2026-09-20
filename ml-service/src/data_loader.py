@@ -93,6 +93,17 @@ def load_raw_dataset() -> pd.DataFrame:
     )
 
 
+def dataset_source_paths() -> list[str]:
+    """
+    The files load_raw_dataset() reads, in a fixed order, so callers
+    (e.g. the Phase 4 dataset hash) refer to exactly the same files.
+    Only meaningful after load_raw_dataset() has succeeded.
+    """
+    if DATASET_PATH:
+        return [DATASET_PATH]
+    return [FAKE_CSV_PATH, TRUE_CSV_PATH]
+
+
 def _read_csv(path: str) -> pd.DataFrame:
     try:
         return pd.read_csv(path)
