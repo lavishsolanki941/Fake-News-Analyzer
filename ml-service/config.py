@@ -35,6 +35,11 @@ DATASET_PATH = os.environ.get("DATASET_PATH")
 # carry essentially no signal for TF-IDF and are dropped.
 MIN_TEXT_LENGTH = int(os.environ.get("MIN_TEXT_LENGTH", "20"))
 
+# Fraction of rows held out as the test set in Phase 3's train/test
+# split. random_state is fixed at 42 everywhere splitting/training
+# happens so a re-run reproduces the same numbers.
+TEST_SIZE = float(os.environ.get("TEST_SIZE", "0.2"))
+
 # Label convention used everywhere downstream: DB rows, API responses,
 # the Streamlit UI. Keeping it in one place avoids 0/1 mix-ups later.
 REAL_LABEL = 1
