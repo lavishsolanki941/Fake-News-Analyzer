@@ -1,8 +1,14 @@
 pandas==2.3.1
-numpy==2.1.3
-scikit-learn==1.5.2
-joblib==1.4.2
+numpy==2.3.2
+scikit-learn==1.9.0
+# Must match the versions the saved .joblib files were pickled with
+# (recorded in models/metrics.json -> metadata.library_versions).
+joblib==1.5.3
+
+# Phase 5: FastAPI wrapper (pydantic and starlette come in via fastapi)
+fastapi==0.141.1
+uvicorn==0.53.0
+pydantic==2.13.5
 
 # Added in later phases as each dependency is actually introduced:
-# fastapi, uvicorn, pydantic (Phase 5)
 # pytest, httpx (Phase 8)
