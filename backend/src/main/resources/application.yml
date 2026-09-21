@@ -1,1 +1,40 @@
-# Added in Phase 6: server port, ML_SERVICE_URL, H2 file DB config.
+server:
+  port: 8080
+
+spring:
+  application:
+    name: fakenews-backend
+
+  datasource:
+    # File-based H2 so prediction history survives restarts. DB_PATH is the
+    # file path WITHOUT the .mv.db suffix; in Docker point it at a mounted volume.
+    # Only one process may open the file at a time.
+    url: jdbc:h2:file:${DB_PATH:./newscheck-db}
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      # Create/extend tables automatically without wiping existing history.
+      ddl-auto: update
+    # Don't keep a DB connection open for the whole web request; the slow
+    # ML calls in /analyze must not hold one.
+    open-in-view: false
+
+  jackson:
+    # JSON fields are snake_case (top_positive, text_snippet, ...), matching the
+    # Python ML service's contract and what the Streamlit client will read.
+    property-naming-strategy: SNAKE_CASE
+
+ml:
+  service:
+    # Base URL of the FastAPI ML service.
+    url: ${ML_SERVICE_URL:http://localhost:8000}
+    # Fail fast if the ML service isn't reachable at all...
+    connect-timeout: 2s
+    # ...and give up on one that accepts the connection but answers too slowly.
+    read-timeout: 10s
+
+logging:
+  level:
+    root: INFO
