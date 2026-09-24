@@ -1,0 +1,13 @@
+target/
+.mvn/
+*.iml
+.idea/
+
+# Local H2 database files -- machine-specific, never part of the image.
+*.mv.db
+*.trace.db
+
+.git/
+.gitignore
+.dockerignore
+Dockerfile

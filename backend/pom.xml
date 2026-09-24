@@ -39,7 +39,12 @@
       <artifactId>h2</artifactId>
       <scope>runtime</scope>
     </dependency>
-    <!-- Test dependencies (spring-boot-starter-test) are added in Phase 8. -->
+    <!-- Phase 8: JUnit 5, Mockito, MockMvc, AssertJ: everything the tests need. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

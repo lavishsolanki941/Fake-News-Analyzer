@@ -1,0 +1,20 @@
+# Never bake the dataset or trained models into the image -- they're
+# mounted as volumes at runtime instead (see docker-compose.yml).
+data/*.csv
+models/*.joblib
+models/*.json
+
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+tests/
+requirements-dev.txt
+
+.git/
+.gitignore
+.dockerignore
+Dockerfile

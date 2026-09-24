@@ -1,0 +1,9 @@
+# Extra dependencies for running the test suite (ml-service/tests/) locally
+# or in CI. Install with: pip install -r requirements-dev.txt
+-r requirements.txt
+
+# Test runner.
+pytest==9.1.1
+# FastAPI's TestClient uses httpx under the hood to call the app in-process,
+# no real server/port needed (see tests/test_main.py).
+httpx==0.28.1

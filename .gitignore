@@ -22,7 +22,9 @@ venv/
 
 # ---- Java / Spring Boot (backend) ----
 backend/target/
-backend/.mvn/
+# backend/.mvn/wrapper/ (maven-wrapper.properties + maven-wrapper.jar) is
+# deliberately NOT ignored -- it's what lets `mvnw`/`mvnw.cmd` build the
+# project without a global Maven install, so it must be committed.
 backend/*.iml
 *.class
 
@@ -40,3 +42,6 @@ Thumbs.db
 # ---- Env files ----
 .env
 .env.local
+
+hs_err_pid*.log
+replay_pid*.log

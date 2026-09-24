@@ -1,0 +1,10 @@
+# Active only under @ActiveProfiles("test"). Overrides application.yml so
+# tests use a throwaway in-memory H2 database (unique per test run) instead
+# of the real file-based ./newscheck-db used by the running app -- tests
+# must never read or write the developer's real prediction history.
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb-${random.uuid};DB_CLOSE_DELAY=-1
+  jpa:
+    hibernate:
+      ddl-auto: create-drop

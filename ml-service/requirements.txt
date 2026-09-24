@@ -10,5 +10,6 @@ fastapi==0.141.1
 uvicorn==0.53.0
 pydantic==2.13.5
 
-# Added in later phases as each dependency is actually introduced:
-# pytest, httpx (Phase 8)
+# Test-only deps (pytest, httpx) live in requirements-dev.txt, not here --
+# this file is what the Docker image installs, and there's no reason to ship
+# a test runner into the runtime container.

@@ -1,13 +1,34 @@
-# docker-compose skeleton (Phase 1).
+# Runs all three NewsCheck tiers together: ml-service, backend, frontend.
 #
-# This just sketches the three services and how they'll be wired together.
-# Build contexts/Dockerfiles are added properly in Phase 8, once each
-# service actually has code and a working Dockerfile to point at.
+#   docker compose up --build
 #
 # Data flow (one direction only):
-#   frontend (Streamlit) -> backend (Spring Boot) -> ml-service (FastAPI)
-
-version: "3.9"
+#   frontend (Streamlit, :8501) -> backend (Spring Boot, :8080) -> ml-service (FastAPI, :8000)
+#
+# Services talk to each other by SERVICE NAME (e.g. http://ml-service:8000),
+# not localhost -- each container has its own network namespace, so
+# "localhost" inside the backend container means the backend container
+# itself, not its neighbors. Compose puts every service on one shared
+# network and gives each a DNS name matching its service name, which is
+# what ML_SERVICE_URL / BACKEND_URL below rely on.
+#
+# ---- Trained model requirement (read this before `docker compose up`) ----
+# ml-service/models/ and ml-service/data/ are gitignored and excluded from
+# the image build (see ml-service/.dockerignore) -- the dataset and trained
+# models are never baked into an image. Instead, ./ml-service/models is
+# mounted straight from your host into the container, so it serves whatever
+# you already trained locally. If that folder is empty, ml-service starts
+# fine but /predict and /explain return a clear 503 ("model not trained
+# yet") instead of guessing -- run this once on the host first:
+#
+#   cd ml-service && pip install -r requirements.txt && python -m src.train
+#
+# (No automatic "train on container startup" fallback is included here on
+# purpose -- it would need the multi-hundred-MB dataset mounted into the
+# container too and would make the first `docker compose up` take as long
+# as a full training run. Training once on the host, ahead of time, into
+# the already-gitignored models/ folder that gets mounted in, is simpler
+# and faster for local development.)
 
 services:
   ml-service:
@@ -15,24 +36,45 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      # Host's trained artifacts, used as-is -- read/write so the container
+      # could retrain in place if you ever run `python -m src.train` inside it.
       - ./ml-service/models:/app/models
-    # env_vars for the ML service (e.g. MODEL_DIR) added in Phase 5/8.
+    environment:
+      MODEL_DIR: /app/models
 
   backend:
     build: ./backend
     ports:
       - "8080:8080"
     environment:
+      # Service name, not localhost -- see the note at the top of this file.
       ML_SERVICE_URL: http://ml-service:8000
+      DB_PATH: /app/data/newscheck-db
+    volumes:
+      # Named volume so prediction history in the H2 file database survives
+      # `docker compose down` / image rebuilds, not just container restarts.
+      - backend-db:/app/data
     depends_on:
+      # Starts ml-service's container first. This only orders container
+      # *start*, it does NOT wait for ml-service to be ready to serve
+      # requests -- that's fine here because MlServiceClient already treats
+      # "ML service unreachable" as a normal, handled error (a clean 503 to
+      # its own caller, not a crash), so the backend comes up fine even if
+      # ml-service is still initializing.
       - ml-service
-    # H2 file DB volume added in Phase 6/8.
 
   frontend:
     build: ./frontend
     ports:
       - "8501:8501"
     environment:
+      # Service name, not localhost -- see the note at the top of this file.
       BACKEND_URL: http://backend:8080
     depends_on:
+      # Same caveat as above: orders startup, doesn't guarantee readiness.
+      # frontend/api_client.py already turns "backend unreachable" into a
+      # friendly BackendError shown in the UI instead of a raw exception.
       - backend
+
+volumes:
+  backend-db:
