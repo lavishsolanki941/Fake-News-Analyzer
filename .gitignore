@@ -3,10 +3,9 @@
 ml-service/data/*
 !ml-service/data/.gitkeep
 
-# Trained models/vectorizers are build outputs, not source.
-# NOTE: see README "Deployment Note" for how the ML service still gets
-# a model at runtime (train-on-first-run via docker-compose volume,
-# or manually committing a small artifact) despite this ignore rule.
+# Trained models/vectorizers are build outputs, not source: never committed.
+# Regenerate with `python -m src.train`; docker-compose mounts the folder into
+# the ml-service container as a volume (see README "Deployment notes").
 ml-service/models/*
 !ml-service/models/.gitkeep
 
